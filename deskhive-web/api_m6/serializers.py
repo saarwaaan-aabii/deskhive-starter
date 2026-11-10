@@ -4,6 +4,7 @@ from deskhive_core.booking import InvalidBookingError, validate_booking
 from rest_framework import serializers
 
 from bookings.intervals import local_interval
+from bookings.services import save_booking
 from spaces.models import Space
 
 class SpaceSerializer(serializers.ModelSerializer):
@@ -34,8 +35,12 @@ class BookingCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({'non_field_errors': [str(exc)]}) from exc
         return attrs
 
-    # TODO M6 Lab 2: implement create() by calling bookings.services.save_booking.
-    # Translate model/service validation failures into DRF ValidationError.
+    def create(self, validated_data):
+        # Persist only through the M5 service (availability + model rules).
+        try:
+            return save_booking(**validated_data)
+        except DjangoValidationError as exc:  # e.g. space already booked
+            raise serializers.ValidationError({'non_field_errors': exc.messages}) from exc
 
 class BookingReadSerializer(serializers.Serializer):
     # TODO M6 Lab 2: return id, space code, start and end (read-only).
