@@ -3,12 +3,14 @@ from rest_framework import serializers
 from spaces.models import Space
 
 class SpaceSerializer(serializers.ModelSerializer):
-    # TODO M6 Lab 2: read-only location_city from location.city.
+    # City of the related Location, flattened into the space representation.
+    location_city = serializers.CharField(source='location.city', read_only=True)
+
     class Meta:
         model = Space
-        # TODO M6 Lab 2: expose code, name, kind, capacity,
-        # hourly_rate and location_city as read-only data.
-        fields = ('code', 'name', 'kind', 'capacity', 'hourly_rate')
+        # Explicit public contract: only these fields, all read-only.
+        fields = ('code', 'name', 'kind', 'capacity', 'hourly_rate', 'location_city')
+        read_only_fields = fields
 
 class BookingCreateSerializer(serializers.Serializer):
     # TODO M6 Lab 2: declare space (lookup by code), full_name, email,
