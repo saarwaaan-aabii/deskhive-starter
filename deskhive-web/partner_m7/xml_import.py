@@ -2,6 +2,8 @@
 import re
 import xml.etree.ElementTree as ET
 
+from django.core.exceptions import ValidationError
+
 from bookings.models import Member
 
 # DTDs can declare entities (external files, "billion laughs" expansion).
@@ -37,6 +39,37 @@ def _parse_contacts(xml_bytes: bytes) -> list[dict]:
             raise ValueError(f'Contact {position} must contain exactly <full_name> and <email>')
         contacts.append({tag: contact.find(tag).text for tag in _CONTACT_FIELDS})
     return contacts
+
+
+def _validate_contacts(raw_contacts: list[dict]) -> list[dict]:
+    """Validate every contact in memory, before any database write.
+
+    Applies the exercise rules (required values, lowercase email, no duplicate
+    email in the file) and the existing Member field constraints. Collects all
+    problems and raises one ValueError if any contact is invalid.
+    """
+    errors, cleaned, seen = [], [], set()
+    for position, raw in enumerate(raw_contacts, start=1):
+        full_name = (raw['full_name'] or '').strip()
+        email = (raw['email'] or '').strip().lower()
+        if not full_name or not email:
+            errors.append(f'Contact {position}: full_name and email are required')
+            continue
+        if email in seen:
+            errors.append(f'Contact {position}: duplicate email {email} in this file')
+            continue
+        seen.add(email)
+        try:
+            # Existing model rules (max_length, email format). Uniqueness against
+            # stored members is not an error: existing members are skipped later.
+            Member(full_name=full_name, email=email).full_clean(validate_unique=False)
+        except ValidationError as exc:
+            errors.append(f'Contact {position}: {exc.messages}')
+            continue
+        cleaned.append({'full_name': full_name, 'email': email})
+    if errors:
+        raise ValueError('Invalid contacts: ' + '; '.join(errors))
+    return cleaned
 
 
 def import_corporate_contacts(xml_bytes: bytes) -> int:
