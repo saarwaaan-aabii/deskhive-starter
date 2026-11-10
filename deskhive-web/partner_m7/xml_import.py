@@ -3,6 +3,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from bookings.models import Member
 
@@ -82,5 +83,14 @@ def import_corporate_contacts(xml_bytes: bytes) -> int:
     do not partially import an invalid document. No schema/model migration.
     This classroom lab accepts small, locally trusted XML inputs only.
     """
-    # TODO M7-LAB2: validate each contact, then persist atomically.
-    raise NotImplementedError('M7 Lab 2: import_corporate_contacts')
+    contacts = _validate_contacts(_parse_contacts(xml_bytes))  # no write before this
+    existing = set(Member.objects.filter(email__in=[c['email'] for c in contacts])
+                   .values_list('email', flat=True))
+    created = 0
+    with transaction.atomic():  # all new members are saved, or none
+        for contact in contacts:
+            if contact['email'] in existing:
+                continue  # existing members are left unchanged, never duplicated
+            Member.objects.create(**contact)
+            created += 1
+    return created
