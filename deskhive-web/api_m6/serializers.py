@@ -43,5 +43,8 @@ class BookingCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({'non_field_errors': exc.messages}) from exc
 
 class BookingReadSerializer(serializers.Serializer):
-    # TODO M6 Lab 2: return id, space code, start and end (read-only).
-    pass
+    # Focused response for a created booking: no member or internal data.
+    id = serializers.IntegerField(read_only=True)
+    space = serializers.SlugRelatedField(slug_field='code', read_only=True)
+    start = serializers.DateTimeField(read_only=True)
+    end = serializers.DateTimeField(read_only=True)
