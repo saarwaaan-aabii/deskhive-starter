@@ -35,8 +35,19 @@ def list_available_spaces(start_iso: str, end_iso: str) -> list[dict]:
     Dates must be offset-aware ISO-8601 strings; validate using the existing
     DeskHive interval rules. No writes. Invalid input raises ValueError.
     """
-    # TODO M7-LAB1: parse/validate the dates and query actual available spaces.
-    raise NotImplementedError('M7 Lab 1: list_available_spaces')
+    start, end = _parse_interval(start_iso, end_iso)
+    spaces = Space.objects.select_related('location').order_by('code')
+    return [
+        {
+            'code': space.code,
+            'name': space.name,
+            'city': space.location.city,
+            'kind': space.kind,
+            'hourly_rate': str(space.hourly_rate),  # Decimal is not XML-RPC-safe
+        }
+        for space in spaces
+        if is_available(space, start, end)  # existing overlap rule, whole interval
+    ]
 
 def get_space_availability(code: str, start_iso: str, end_iso: str) -> bool:
     """Return availability for an existing Space.code and interval.
