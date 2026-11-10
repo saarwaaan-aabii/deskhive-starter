@@ -13,11 +13,15 @@ class SpaceSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 class BookingCreateSerializer(serializers.Serializer):
-    # TODO M6 Lab 2: declare space (lookup by code), full_name, email,
-    # start and end. Validate interval with local_interval + validate_booking.
+    # Format-level validation: DRF checks each field before any booking rule.
+    space = serializers.SlugRelatedField(slug_field='code', queryset=Space.objects.all())
+    full_name = serializers.CharField(max_length=100)
+    email = serializers.EmailField()
+    start = serializers.DateTimeField()
+    end = serializers.DateTimeField()
+    # TODO M6 Lab 2: validate interval with local_interval + validate_booking.
     # Implement create() by calling bookings.services.save_booking.
     # Translate model/service validation failures into DRF ValidationError.
-    pass
 
 class BookingReadSerializer(serializers.Serializer):
     # TODO M6 Lab 2: return id, space code, start and end (read-only).
