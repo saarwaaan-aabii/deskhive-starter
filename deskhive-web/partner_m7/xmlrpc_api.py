@@ -54,5 +54,9 @@ def get_space_availability(code: str, start_iso: str, end_iso: str) -> bool:
 
     Unknown codes / invalid date ranges raise ValueError.
     """
-    # TODO M7-LAB1: find the space by code and reuse availability rules.
-    raise NotImplementedError('M7 Lab 1: get_space_availability')
+    try:
+        space = Space.objects.get(code=code)  # exact business identifier only
+    except (Space.DoesNotExist, TypeError, ValueError) as exc:
+        raise ValueError(f'Unknown space code: {code!r}') from exc
+    start, end = _parse_interval(start_iso, end_iso)
+    return bool(is_available(space, start, end))  # native bool for XML-RPC
