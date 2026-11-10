@@ -53,5 +53,5 @@ def availability(request):
     form = AvailabilityForm(request.GET)
     if not form.is_valid():
         return JsonResponse({'errors': form.errors.get_json_data()}, status=400)
-    # TODO M5 lab 3: return the boolean result of is_available(**form.cleaned_data).
-    return JsonResponse({'error': 'Complete M5 lab 3: availability endpoint.'}, status=501)
+    # Read-only lookup: reports availability, never creates or reserves a booking.
+    return JsonResponse({'available': is_available(**form.cleaned_data)})
