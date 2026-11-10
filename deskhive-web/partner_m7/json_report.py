@@ -1,7 +1,11 @@
 """Lab 2 — Export actual monthly DeskHive booking usage as JSON text."""
+import json
 import re
 from datetime import datetime
+from decimal import Decimal
 from zoneinfo import ZoneInfo
+
+from bookings.models import Booking
 
 REPORT_ZONE = ZoneInfo('Europe/Paris')
 _MONTH_FORMAT = re.compile(r'[0-9]{4}-[0-9]{2}')  # ASCII digits only
@@ -30,5 +34,34 @@ def export_usage_report(month: str) -> str:
     Hours are decimal strings with 2 fractional digits. Sort rows by code.
     No database writes; invalid month raises ValueError.
     """
-    # TODO M7-LAB2: query bookings, aggregate hours and serialize with json.
-    raise NotImplementedError('M7 Lab 2: export_usage_report')
+    start, end = _month_bounds(month)
+    # Real bookings whose *start* falls in the month (read-only query).
+    bookings = (Booking.objects
+                .filter(start__gte=start, start__lt=end)
+                .select_related('space__location'))
+    rows = {}
+    for booking in bookings:
+        row = rows.setdefault(booking.space.code, {
+            'code': booking.space.code,
+            'city': booking.space.location.city,
+            'bookings': 0,
+            'seconds': 0,
+        })
+        row['bookings'] += 1
+        row['seconds'] += int((booking.end - booking.start).total_seconds())
+    spaces = [
+        {
+            'code': row['code'],
+            'city': row['city'],
+            'bookings': row['bookings'],
+            # Decimal avoids float rounding; string keeps it JSON-safe.
+            'hours': str((Decimal(row['seconds']) / 3600).quantize(Decimal('0.01'))),
+        }
+        for row in sorted(rows.values(), key=lambda r: r['code'])
+    ]
+    report = {
+        'month': month,
+        'total_bookings': sum(row['bookings'] for row in spaces),
+        'spaces': spaces,
+    }
+    return json.dumps(report)
